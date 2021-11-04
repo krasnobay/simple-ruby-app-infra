@@ -19,29 +19,11 @@ terraform {
   required_version = ">= 0.15.3"
 }
 
-resource "aws_eip" "eip" {
-  vpc = true
-}
-
-resource "aws_eip_association" "eip_assoc" {
-  instance_id   = aws_instance.app_server.id
-  allocation_id = aws_eip.eip.id
-}
-
-provider "docker" {
-  host = "ssh://${local.instance_user}@${aws_eip.eip.public_ip}:22"
-}
-
-# provider "docker" {
-#   host = "ssh://${local.instance_user}@${aws_instance.app_server.public_ip}:22"
-# }
-
 provider "aws" {
   profile = "default"
   region  = "us-east-1"
 }
 
-provider "ct" {}
 
 locals {
   # FEDORA-COREOS
@@ -82,6 +64,7 @@ module "ec2_sg" {
   egress_rules        = ["all-all"]
 }
 
+provider "ct" {}
 
 data "ct_config" "config" {
   content = templatefile("config.tpl", {
@@ -91,6 +74,9 @@ data "ct_config" "config" {
   strict = true
 }
 
+provider "docker" {
+  host = "ssh://${local.instance_user}@${aws_eip.eip.public_ip}:22"
+}
 resource "docker_image" "app" {
   name = local.image
 }
@@ -106,4 +92,13 @@ resource "docker_container" "app" {
     external = 80
   }
   restart = "unless-stopped"
+}
+
+resource "aws_eip" "eip" {
+  vpc = true
+}
+
+resource "aws_eip_association" "eip_assoc" {
+  instance_id   = aws_instance.app_server.id
+  allocation_id = aws_eip.eip.id
 }
